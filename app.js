@@ -20,6 +20,9 @@ const Busboy = require('busboy');
 const {waterfall}=require('async/waterfall');
 var ffmpeg = require('ffmpeg');
 const { execFile } = require('child_process');
+const { Token } = require('./db/models/emailToken');
+const nodemailer = require('nodemailer');
+const crypto = require('crypto');
 
 var app = express();
 
@@ -76,6 +79,29 @@ app.post('/register', (req,res) => {
         var newUser = new Users (formData);
         newUser.save().then((result) => {
             res.send(result);
+
+            //email auth
+            var token = new Token({ _userId: newUser._id, token: crypto.randomBytes(16).toString('hex') });
+            
+            var transporter = nodemailer.createTransport({ service: 'Sendgrid', 
+                                                           auth: { 
+                                                             user: process.env.SENDGRID_USERNAME, 
+                                                             pass: process.env.SENDGRID_PASSWORD 
+                                                            } 
+                                                          });
+
+            var mailOptions = { from: 'no-reply@flipclip.com', 
+                                to: newUser.email, 
+                                subject: 'Account Verification Token', 
+                                text: 'Hello,\n\n' + 'Please verify your account by clicking the link: \nhttp:\/\/' + req.headers.host + '\/confirmation\/' + token.token + '.\n' 
+                              };
+                          
+            transporter.sendMail(mailOptions, function (err) {
+                                                if (err) { return res.status(500).send({ msg: err.message }); }
+                                                
+                                                res.status(200).send('A verification email has been sent to ' + newUser.email + '.');
+                                });
+
             }, (error) => {
             // handle the error here
             res.status(400).json({erro : error});

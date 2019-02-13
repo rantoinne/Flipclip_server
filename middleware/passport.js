@@ -3,6 +3,7 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const {Users} = require('../db/models/users');
 
+
 passport.use(new LocalStrategy({
         usernameField: 'username',
         passwordField: 'password'
@@ -16,6 +17,9 @@ passport.use(new LocalStrategy({
                if (!user) {
                    return cb( {message: 'Incorrect email or password.'}, false, {message: 'Incorrect email or password.'});
                }
+
+               else if(!user.isVerified) return res.status(401).send({ type: 'not-verified', msg: 'Your account has not been verified.' }); 
+
                return cb(null, user, {message: 'Logged In Successfully'});
           })
           .catch(err => cb(err));
